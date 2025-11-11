@@ -23,7 +23,7 @@ Vele enables users to:
 - **Real-time**: Socket.io Client
 - **Video**: Simple Peer (WebRTC)
 - **Animations**: Framer Motion
-
+lol
 ### Backend
 - **Runtime**: Node.js with TypeScript
 - **Framework**: Express.js
