@@ -9,6 +9,26 @@ import reportRoutes from './report';
 import { apiLimiter } from '../middleware/rateLimit';
 
 export const setupRoutes = (app: Express) => {
+  // Root route - only show API info in development
+  if (process.env.NODE_ENV !== 'production') {
+    app.get('/', (req, res) => {
+      res.json({ 
+        message: 'Vele API Server',
+        version: '1.0.0',
+        endpoints: {
+          health: '/api/health',
+          auth: '/api/auth',
+          user: '/api/user',
+          subscription: '/api/subscription',
+          gamification: '/api/gamification',
+          admin: '/api/admin',
+          chat: '/api/chat',
+          report: '/api/report'
+        }
+      });
+    });
+  }
+
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Vele API is running' });
   });

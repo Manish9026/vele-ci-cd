@@ -3,10 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "start": "next dev -p 3000",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "postbuild": "node -e \"const fs=require('fs');const path=require('path');const src='out';const dest='build';if(fs.existsSync(dest))fs.rmSync(dest,{recursive:true,force:true});if(fs.existsSync(src))fs.cpSync(src,dest,{recursive:true});\"",
+    "test": "next test",
+    "lint": "eslint src --fix",
+    "serve": "serve -s out",
+    "serve:build": "serve -s build"
   },
   "dependencies": {
     "next": "^14.0.4",
@@ -35,7 +38,8 @@
     "postcss": "^8.4.32",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.56.0",
-    "eslint-config-next": "^14.0.4"
+    "eslint-config-next": "^14.0.4",
+    "serve": "^14.2.1"
   }
 }
 

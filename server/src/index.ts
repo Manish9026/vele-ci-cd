@@ -69,8 +69,25 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Serve static files from client build (if exists)
+const clientBuildPath = path.join(__dirname, '../../client/out');
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(clientBuildPath));
+}
+
 // Routes
 setupRoutes(app);
+
+// Serve client app for all non-API routes (SPA fallback)
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    // Don't serve client for API routes
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+}
 setupSocketIO(io);
 
 // MongoDB Connection
