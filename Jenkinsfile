@@ -1,101 +1,53 @@
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    // Define registry or common variables here if needed
-    DOCKER_COMPOSE_FILE = 'docker-compose.yml'
-  }
-
-  stages {
-
-    stage('Clone Repository') {
-      steps {
-        echo "🔄 Cloning repository..."
-        git branch: 'main', url: 'https://github.com/aniketjha348/vele-ci-cd.git'
-      }
+    environment {
+        // Match actual Jenkins credentials IDs
+        SERVER_ENV = credentials('server_env_file')
+        CLIENT_ENV = credentials('client_env_file')
     }
 
-    stage('Inject Environment Variables Securely') {
-      steps {
-        echo "🔐 Injecting environment variables from Jenkins secret files..."
-        withCredentials([
-          file(credentialsId: 'server-env', variable: 'SERVER_ENV'),
-          file(credentialsId: 'client-env', variable: 'CLIENT_ENV')
-        ]) {
-          sh '''
-            #!/bin/bash
-            echo "→ Using bash shell for environment setup..."
-            set -a
-            if [ -f "$SERVER_ENV" ]; then
-              echo "Loading server environment variables..."
-              source "$SERVER_ENV"
-            else
-              echo "⚠️ No server .env file found!"
-            fi
-
-            if [ -f "$CLIENT_ENV" ]; then
-              echo "Loading client environment variables..."
-              source "$CLIENT_ENV"
-            else
-              echo "⚠️ No client .env file found!"
-            fi
-            set +a
-          '''
+    stages {
+        stage('Clone Repository') {
+            steps {
+                echo '🔄 Cloning repository...'
+                git branch: 'main', url: 'https://github.com/aniketjha348/vele-ci-cd.git'
+            }
         }
-      }
+
+        stage('Inject .env Files Securely') {
+            steps {
+                echo '🔐 Injecting .env files securely...'
+                sh '''
+                    mkdir -p ./server ./client
+                    cp "$SERVER_ENV" ./server/.env
+                    cp "$CLIENT_ENV" ./client/.env
+                '''
+            }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                echo '🐳 Building Docker images...'
+                sh 'docker-compose build --no-cache'
+            }
+        }
+
+        stage('Deploy Docker Containers') {
+            steps {
+                echo '🚀 Deploying Docker containers...'
+                sh 'docker-compose up -d'
+            }
+        }
     }
 
-    stage('Clean Previous Deployment') {
-      steps {
-        echo "🧹 Cleaning previous Docker containers and images..."
-        sh '''
-          docker-compose -f $DOCKER_COMPOSE_FILE down || true
-          docker system prune -af || true
-        '''
-      }
+    post {
+        always {
+            echo '🧹 Cleaning up unused Docker resources and sensitive files...'
+            sh '''
+                docker system prune -f
+                rm -f ./server/.env ./client/.env || true
+            '''
+        }
     }
-
-    stage('Build Fresh Docker Images') {
-      steps {
-        echo "🏗️ Building new Docker images..."
-        sh '''
-          docker-compose -f $DOCKER_COMPOSE_FILE build --no-cache
-        '''
-      }
-    }
-
-    stage('Deploy Containers') {
-      steps {
-        echo "🚀 Deploying containers..."
-        sh '''
-          docker-compose -f $DOCKER_COMPOSE_FILE up -d
-        '''
-      }
-    }
-
-    stage('Verify Deployment') {
-      steps {
-        echo "🧩 Verifying backend and frontend containers..."
-        sh '''
-          echo "Backend container status:"
-          docker ps | grep vele-server || echo "⚠️ Backend not running"
-          echo "Frontend container status:"
-          docker ps | grep vele-client || echo "⚠️ Frontend not running"
-        '''
-      }
-    }
-  }
-
-  post {
-    always {
-      echo "🧽 Final cleanup of unused Docker resources..."
-      sh 'docker system prune -f || true'
-    }
-    success {
-      echo "✅ Deployment completed successfully!"
-    }
-    failure {
-      echo "❌ Deployment failed. Please check logs above."
-    }
-  }
 }
