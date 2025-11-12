@@ -11,7 +11,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', credentialsId: 'github-pat', url: 'https://github.com/aniketjha348/vele.git'
+                checkout scm
             }
         }
 
