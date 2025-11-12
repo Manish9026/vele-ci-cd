@@ -2,9 +2,7 @@ pipeline {
     agent any
 
     environment {
-        // Bind secret files from Jenkins credentials
-        SERVER_ENV = credentials('server_env_file')
-        CLIENT_ENV = credentials('client_env_file')
+        DOCKER_COMPOSE_CMD = "docker-compose -f docker-compose.yml"
     }
 
     stages {
@@ -15,32 +13,57 @@ pipeline {
             }
         }
 
-        stage('Inject .env Files Securely') {
+        stage('Inject Environment Variables Securely') {
             steps {
-                echo '🔐 Injecting .env files securely...'
+                echo '🔐 Injecting environment variables from Jenkins secret files...'
+                withCredentials([
+                    file(credentialsId: 'server_env_file', variable: 'SERVER_ENV'),
+                    file(credentialsId: 'client_env_file', variable: 'CLIENT_ENV')
+                ]) {
+                    sh '''
+                        # Export all variables from both env files securely
+                        set -a
+                        source $SERVER_ENV
+                        source $CLIENT_ENV
+                        set +a
+                        echo "✅ Environment variables loaded into environment."
+                    '''
+                }
+            }
+        }
+
+        stage('Clean Previous Deployment') {
+            steps {
+                echo '🧹 Removing old containers and images before new build...'
                 sh '''
-                    mkdir -p ./server ./client
-                    cp "$SERVER_ENV" ./server/.env
-                    cp "$CLIENT_ENV" ./client/.env
+                    # Stop and remove any existing containers
+                    ${DOCKER_COMPOSE_CMD} down --remove-orphans || true
+
+                    # Remove dangling images and unused volumes
+                    docker image prune -af || true
+                    docker volume prune -f || true
+
+                    echo "✅ Old containers, images, and volumes cleaned up."
                 '''
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Build Fresh Docker Images') {
             steps {
-                echo '🐳 Building Docker images...'
-                sh 'docker-compose build --no-cache'
+                echo '🐳 Building fresh Docker images...'
+                sh '''
+                    ${DOCKER_COMPOSE_CMD} build --no-cache
+                    echo "✅ Docker images built successfully."
+                '''
             }
         }
 
-        stage('Deploy Docker Containers') {
+        stage('Deploy Containers') {
             steps {
-                echo '🚀 Deploying Docker containers...'
+                echo '🚀 Deploying new containers...'
                 sh '''
-                    echo "🧼 Cleaning up old containers..."
-                    docker-compose down || true
-                    docker rm -f vele-client vele-server || true
-                    docker-compose up -d
+                    ${DOCKER_COMPOSE_CMD} up -d
+                    echo "✅ Deployment successful!"
                 '''
             }
         }
@@ -48,24 +71,21 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 echo '🔍 Checking running containers...'
-                sh 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
+                sh 'docker ps'
             }
         }
     }
 
     post {
+        success {
+            echo '✅ Deployment completed successfully!'
+        }
+        failure {
+            echo '❌ Deployment failed. Please check logs above.'
+        }
         always {
-            echo '🧹 Cleaning up unused Docker resources and sensitive files...'
-            sh '''
-                echo "🗑️ Removing temporary environment files..."
-                rm -f ./server/.env ./client/.env || true
-
-                echo "🧼 Pruning unused Docker data..."
-                docker system prune -f --volumes || true
-
-                echo "🌀 Rotating Jenkins logs..."
-                find /var/log/jenkins -type f -name "*.log" -mtime +10 -exec rm -f {} \\; || true
-            '''
+            echo '🧽 Final cleanup of unused Docker resources...'
+            sh 'docker system prune -f || true'
         }
     }
 }
