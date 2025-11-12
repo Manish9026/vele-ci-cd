@@ -18,4 +18,3 @@ services:
       - ./client/.env
     depends_on:
       - backend
- 
