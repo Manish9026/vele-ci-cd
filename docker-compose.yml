@@ -4,44 +4,30 @@ services:
   backend:
     build:
       context: ./server
-      dockerfile: Dockerfile
       args:
-        SERVER_ENV_FILE: temp_server.env   # passed by Jenkins, ignored locally if not present
+        SERVER_ENV_CONTENT: ${SERVER_ENV_CONTENT}
     container_name: vele-backend
     ports:
       - "5000:5000"
-    environment:
-      - NODE_ENV=development
-      - PORT=5000
     depends_on:
       - mongodb
 
   frontend:
     build:
       context: ./client
-      dockerfile: Dockerfile
       args:
-        CLIENT_ENV_FILE: temp_client.env   # passed by Jenkins, ignored locally if not present
+        CLIENT_ENV_CONTENT: ${CLIENT_ENV_CONTENT}
     container_name: vele-frontend
     ports:
       - "3000:3000"
-    environment:
-      - NODE_ENV=development
     depends_on:
       - backend
 
   mongodb:
-    image: mongo:7
+    image: mongo:6.0
     container_name: vele-mongo
-    restart: always
-    ports:
-      - "27017:27017"
+    restart: unless-stopped
     environment:
       MONGO_INITDB_DATABASE: vele
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin123
-    volumes:
-      - mongo_data:/data/db
-
-volumes:
-  mongo_data:
+    ports:
+      - "27017:27017"

@@ -2,81 +2,66 @@ pipeline {
     agent any
 
     environment {
-        SERVER_ENV = credentials('server_env_file')
-        CLIENT_ENV = credentials('client_env_file')
+        SERVER_ENV_CONTENT = ''
+        CLIENT_ENV_CONTENT = ''
     }
 
     stages {
-
-        stage('Checkout Repository') {
+        stage('Checkout') {
             steps {
-                echo "🔄 Checking out code from GitHub..."
+                echo "🔄 Checking out code..."
                 checkout scm
             }
         }
 
-        stage('Clean Previous Deployment') {
+        stage('Inject Env Files') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'server_env_file', variable: 'SERVER_ENV'),
+                    string(credentialsId: 'client_env_file', variable: 'CLIENT_ENV')
+                ]) {
+                    script {
+                        // Pass credentials into environment variables for Docker build
+                        env.SERVER_ENV_CONTENT = SERVER_ENV
+                        env.CLIENT_ENV_CONTENT = CLIENT_ENV
+                        echo "🔐 Environment files loaded securely."
+                    }
+                }
+            }
+        }
+
+        stage('Clean Old Containers') {
             steps {
                 echo "🧹 Cleaning old Docker containers and images..."
-                sh '''
-                    docker compose -f docker-compose.yml down
-                    docker system prune -af
-                '''
+                sh 'docker compose down'
+                sh 'docker system prune -af'
             }
         }
 
-        stage('Build Backend Docker Image') {
+        stage('Build & Deploy') {
             steps {
-                echo "🐳 Building backend Docker image securely..."
-                sh '''
-                    echo "$SERVER_ENV" > temp_server.env
-                    docker build --build-arg SERVER_ENV_FILE=temp_server.env -t vele-backend ./server
-                    rm -f temp_server.env
-                '''
-            }
-        }
-
-        stage('Build Frontend Docker Image') {
-            steps {
-                echo "🐳 Building frontend Docker image securely..."
-                sh '''
-                    echo "$CLIENT_ENV" > temp_client.env
-                    docker build --build-arg CLIENT_ENV_FILE=temp_client.env -t vele-frontend ./client
-                    rm -f temp_client.env
-                '''
-            }
-        }
-
-        stage('Deploy Docker Containers') {
-            steps {
-                echo "🚀 Deploying containers with Docker Compose..."
-                sh '''
-                    docker compose -f docker-compose.yml up -d
-                '''
+                echo "🐳 Building Docker images..."
+                sh 'docker compose build'
+                
+                echo "🚀 Deploying Docker containers..."
+                sh 'docker compose up -d'
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                echo "🔎 Verifying deployment..."
-                sh '''
-                    docker ps
-                '''
+                echo "🔎 Checking if containers are running..."
+                sh 'docker ps'
             }
         }
     }
 
     post {
         always {
-            echo "🧽 Cleanup finished."
+            echo "🧽 Pipeline finished."
         }
-
-        success {
-            echo "✅ Deployment succeeded!"
-        }
-
         failure {
-            echo "❌ Deployment failed. Check Jenkins logs for details."
+            echo "❌ Deployment failed. Check logs for details."
         }
     }
 }
