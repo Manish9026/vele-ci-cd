@@ -1,31 +1,44 @@
 version: '3.8'
 
 services:
-  backend:
-    image: your-dockerhub-username/mern-backend:${TAG}
-    env_file:
-      - ./server/.env
-    ports:
-      - "5000:5000"
-    depends_on:
-      - mongodb
-
-  frontend:
-    image: your-dockerhub-username/mern-frontend:${TAG}
-    env_file:
-      - ./client/.env
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-
   mongodb:
     image: mongo:6
     container_name: mongodb
+    restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+
+  backend:
+    image: "${IMAGE_BACKEND:-mern-backend}:${TAG:-latest}"
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    env_file:
+      - ./server/.env
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - mongodb
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  frontend:
+    image: "${IMAGE_FRONTEND:-mern-frontend}:${TAG:-latest}"
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    env_file:
+      - ./client/.env
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
 
 volumes:
   mongo-data:

@@ -1,11 +1,9 @@
 pipeline {
     agent any
     environment {
-        // Optional: define Docker registry if pushing images
-        DOCKER_REGISTRY = 'your-dockerhub-username'
         IMAGE_BACKEND = 'mern-backend'
         IMAGE_FRONTEND = 'mern-frontend'
-        TAG = "${env.BUILD_NUMBER}"
+        TAG = "${env.BUILD_NUMBER ?: 'latest'}"
     }
 
     stages {
@@ -17,7 +15,6 @@ pipeline {
 
         stage('Inject Secrets') {
             steps {
-                // Inject server and client .env files securely
                 withCredentials([
                     file(credentialsId: 'server_env_file', variable: 'SERVER_ENV_PATH'),
                     file(credentialsId: 'client_env_file', variable: 'CLIENT_ENV_PATH')
@@ -31,44 +28,11 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
-            steps {
-                sh '''
-                echo "Installing backend dependencies..."
-                cd server && npm install
-                echo "Installing frontend dependencies..."
-                cd ../client && npm install
-                '''
-            }
-        }
-
-        stage('Build') {
-            steps {
-                sh '''
-                echo "Building backend..."
-                cd server && npm run build
-                echo "Building frontend..."
-                cd ../client && npm run build
-                '''
-            }
-        }
-
         stage('Docker Build') {
             steps {
                 sh '''
                 echo "Building Docker images..."
-                docker build -t $DOCKER_REGISTRY/$IMAGE_BACKEND:$TAG ./server
-                docker build -t $DOCKER_REGISTRY/$IMAGE_FRONTEND:$TAG ./client
-                '''
-            }
-        }
-
-        stage('Docker Push') {
-            steps {
-                sh '''
-                echo "Pushing Docker images..."
-                docker push $DOCKER_REGISTRY/$IMAGE_BACKEND:$TAG
-                docker push $DOCKER_REGISTRY/$IMAGE_FRONTEND:$TAG
+                docker-compose -f docker-compose.yml build backend frontend
                 '''
             }
         }
@@ -77,8 +41,7 @@ pipeline {
             steps {
                 sh '''
                 echo "Deploying with docker-compose..."
-                docker-compose down
-                docker-compose up -d --build
+                docker-compose -f docker-compose.yml up -d --remove-orphans
                 '''
             }
         }

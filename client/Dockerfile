@@ -1,25 +1,21 @@
-# Base image
-FROM node:24-alpine
-
-# Set working directory
+FROM node:18-alpine AS deps
 WORKDIR /app
-
-# Accept env content from Jenkins
-ARG CLIENT_ENV_CONTENT
-RUN echo "$CLIENT_ENV_CONTENT" > .env
-
-# Copy package files and install dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm ci --legacy-peer-deps
 
-# Copy the rest of the client code
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Build frontend
 RUN npm run build
 
-# Expose port
+FROM node:18-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package*.json ./
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/node_modules ./node_modules
+RUN npm prune --omit=dev
 EXPOSE 3000
-
-# Start frontend
 CMD ["npm", "start"]
