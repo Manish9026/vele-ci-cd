@@ -1,20 +1,15 @@
-# Use official Node.js image
 FROM node:24-alpine
 
-# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
-COPY package*.json ./
+# Accept env file as build arg
+ARG SERVER_ENV_FILE
+COPY $SERVER_ENV_FILE .env
 
-# Install dependencies
+COPY package*.json ./
 RUN npm install
 
-# Copy all backend source code
 COPY . .
 
-# Expose backend port
 EXPOSE 5000
-
-# Start backend
 CMD ["npm", "start"]
