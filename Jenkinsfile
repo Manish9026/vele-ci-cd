@@ -19,8 +19,8 @@ pipeline {
             steps {
                 // Inject server and client .env files securely
                 withCredentials([
-                    file(credentialsId: 'SERVER_ENV_FILE', variable: 'SERVER_ENV_PATH'),
-                    file(credentialsId: 'CLIENT_ENV_FILE', variable: 'CLIENT_ENV_PATH')
+                    file(credentialsId: 'server_env_file', variable: 'SERVER_ENV_PATH'),
+                    file(credentialsId: 'client_env_file', variable: 'CLIENT_ENV_PATH')
                 ]) {
                     sh '''
                     echo "Copying server and client env files..."
