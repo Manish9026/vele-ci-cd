@@ -35,6 +35,8 @@ const envOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || '')
   .split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
+console.log('envOrigins', envOrigins);
+console.log('defaultOrigins', defaultOrigins);
 
 const allowedOrigins: string[] = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 
@@ -45,6 +47,10 @@ const io = new Server(server, {
     credentials: true,
   },
 });
+
+console.log(allowedOrigins);
+console.log(defaultOrigins);
+
 
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/vele';
