@@ -30,11 +30,13 @@ if (process.env.NODE_ENV === 'production' && process.env.JWT_SECRET === 'your-se
 
 const app = express();
 const server = http.createServer(app);
-const allowedOrigins: string[] = [
-  'http://localhost:3000',
-  'https://vele-teal.vercel.app',
-  process.env.CLIENT_URL
-].filter((origin): origin is string => Boolean(origin));
+const defaultOrigins = ['http://localhost:3000', 'https://vele-teal.vercel.app'];
+const envOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins: string[] = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 
 const io = new Server(server, {
   cors: {
