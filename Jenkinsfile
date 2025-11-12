@@ -41,6 +41,7 @@ pipeline {
             steps {
                 sh '''
                 echo "Deploying with docker-compose..."
+                docker-compose -f docker-compose.yml down --volumes --remove-orphans || true
                 docker-compose -f docker-compose.yml up -d --remove-orphans
                 '''
             }
