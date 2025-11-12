@@ -68,6 +68,16 @@ app.use(cors({
   exposedHeaders: ['Content-Type'],
 }));
 
+app.get("/debug",(req,res)=>{
+res.send(
+JSON.stringify({
+  allowedOrigins,
+  defaultOrigins,
+  envOrigins,
+})
+)
+})
+
 // Configure Helmet to allow CORS
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
