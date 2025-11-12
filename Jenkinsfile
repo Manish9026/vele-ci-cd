@@ -75,8 +75,8 @@ pipeline {
             echo "❌ Deployment failed for build #${env.BUILD_NUMBER}"
         }
         always {
-            sh 'rm -f ./server/.env ./client/.env'
             sh 'docker-compose -f docker-compose.yml ps'
+            sh 'rm -f ./server/.env ./client/.env'
         }
     }
 }
