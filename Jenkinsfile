@@ -36,7 +36,19 @@ pipeline {
         stage('Deploy Docker Containers') {
             steps {
                 echo '🚀 Deploying Docker containers...'
-                sh 'docker-compose up -d'
+                sh '''
+                    echo "🧼 Cleaning up old containers..."
+                    docker-compose down || true
+                    docker rm -f vele-client vele-server || true
+                    docker-compose up -d
+                '''
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                echo '🔍 Checking running containers...'
+                sh 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
             }
         }
     }
@@ -45,8 +57,14 @@ pipeline {
         always {
             echo '🧹 Cleaning up unused Docker resources and sensitive files...'
             sh '''
-                docker system prune -f
+                echo "🗑️ Removing temporary environment files..."
                 rm -f ./server/.env ./client/.env || true
+
+                echo "🧼 Pruning unused Docker data..."
+                docker system prune -f --volumes || true
+
+                echo "🌀 Rotating Jenkins logs..."
+                find /var/log/jenkins -type f -name "*.log" -mtime +10 -exec rm -f {} \\; || true
             '''
         }
     }
