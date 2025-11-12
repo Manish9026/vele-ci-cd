@@ -60,13 +60,23 @@ app.set('trust proxy', true);
 
 // Middleware
 // CORS must come before other middleware
+// app.use(cors({
+//   origin: allowedOrigins,
+//   credentials: true,
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+//   exposedHeaders: ['Content-Type'],
+// }));
+
+
 app.use(cors({
-  origin: allowedOrigins,
+  origin: "http://20.244.41.209:3000/",
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Type'],
 }));
+
 
 app.get("/debug",(req,res)=>{
 res.send(
