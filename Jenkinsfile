@@ -1,63 +1,93 @@
 pipeline {
     agent any
+    environment {
+        // Optional: define Docker registry if pushing images
+        DOCKER_REGISTRY = 'your-dockerhub-username'
+        IMAGE_BACKEND = 'mern-backend'
+        IMAGE_FRONTEND = 'mern-frontend'
+        TAG = "${env.BUILD_NUMBER}"
+    }
 
     stages {
         stage('Checkout') {
             steps {
-                echo "🔄 Checking out code..."
-                checkout scm
+                git branch: 'main', url: 'https://github.com/your/repo.git'
             }
         }
 
-        stage('Inject Env Files') {
+        stage('Inject Secrets') {
             steps {
+                // Inject server and client .env files securely
                 withCredentials([
-                    file(credentialsId: 'server_env_file', variable: 'SERVER_ENV_FILE_PATH'),
-                    file(credentialsId: 'client_env_file', variable: 'CLIENT_ENV_FILE_PATH')
+                    file(credentialsId: 'SERVER_ENV_FILE', variable: 'SERVER_ENV_PATH'),
+                    file(credentialsId: 'CLIENT_ENV_FILE', variable: 'CLIENT_ENV_PATH')
                 ]) {
-                    script {
-                        echo "🔐 Copying secret env files..."
-                        sh '''
-                        cp "$SERVER_ENV_FILE_PATH" ./server/.env
-                        cp "$CLIENT_ENV_FILE_PATH" ./client/.env
-                        '''
-                    }
+                    sh '''
+                    echo "Copying server and client env files..."
+                    cp $SERVER_ENV_PATH ./server/.env
+                    cp $CLIENT_ENV_PATH ./client/.env
+                    '''
                 }
             }
         }
 
-        stage('Clean Old Containers') {
+        stage('Install Dependencies') {
             steps {
-                echo "🧹 Cleaning old Docker containers and images..."
-                sh 'docker compose down'
-                sh 'docker system prune -af'
+                sh '''
+                echo "Installing backend dependencies..."
+                cd server && npm install
+                echo "Installing frontend dependencies..."
+                cd ../client && npm install
+                '''
             }
         }
 
-        stage('Build & Deploy') {
+        stage('Build') {
             steps {
-                echo "🐳 Building Docker images..."
-                sh 'docker compose build'
-                
-                echo "🚀 Deploying Docker containers..."
-                sh 'docker compose up -d'
+                sh '''
+                echo "Building backend..."
+                cd server && npm run build
+                echo "Building frontend..."
+                cd ../client && npm run build
+                '''
             }
         }
 
-        stage('Verify Deployment') {
+        stage('Docker Build') {
             steps {
-                echo "🔎 Checking if containers are running..."
-                sh 'docker ps'
+                sh '''
+                echo "Building Docker images..."
+                docker build -t $DOCKER_REGISTRY/$IMAGE_BACKEND:$TAG ./server
+                docker build -t $DOCKER_REGISTRY/$IMAGE_FRONTEND:$TAG ./client
+                '''
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                sh '''
+                echo "Pushing Docker images..."
+                docker push $DOCKER_REGISTRY/$IMAGE_BACKEND:$TAG
+                docker push $DOCKER_REGISTRY/$IMAGE_FRONTEND:$TAG
+                '''
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh '''
+                echo "Deploying with docker-compose..."
+                docker-compose down
+                docker-compose up -d --build
+                '''
             }
         }
     }
 
     post {
         always {
-            echo "🧽 Pipeline finished."
-        }
-        failure {
-            echo "❌ Deployment failed. Check logs for details."
+            echo 'Cleaning up...'
+            sh 'rm -f ./server/.env ./client/.env'
         }
     }
 }
