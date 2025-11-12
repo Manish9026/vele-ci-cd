@@ -12,7 +12,7 @@ pipeline {
         stage('Checkout Application') {
             steps {
                 dir('app') {
-                    git branch: 'main', credentialsId: 'github-pat', url: 'https://github.com/aniketjha348/vele.git'
+                    git branch: 'main', credentialsId: 'github-pat', url: 'https://github.com/aniketjha348/vele-ci-cd.git'
                 }
             }
         }
