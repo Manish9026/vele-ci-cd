@@ -28,6 +28,7 @@ lol
 - **Runtime**: Node.js with TypeScript
 - **Framework**: Express.js
 - **Database**: MongoDB with Mongoose
+
 - **Real-time**: Socket.io
 - **Authentication**: JWT
 - **Payments**: Razorpay, Stripe
@@ -112,7 +113,7 @@ PORT=5000
 NODE_ENV=production
 MONGODB_URI=mongodb://mongodb:27017/vele
 JWT_SECRET=your-secret-key-change-this-in-production
-CLIENT_URL=http://localhost:3000
+CLIENT_URLS=http://localhost:3000
 ```
 
 **Note**: In Docker, use `mongodb://mongodb:27017/vele` (service name). For local development, use `mongodb://localhost:27017/vele`.
@@ -127,29 +128,42 @@ NEXT_PUBLIC_SOCKET_URL=http://localhost:5000
 
 ### Pipeline Overview
 
-The Jenkins pipeline automates:
-1. **Clone Repository**: Fetches latest code from GitHub
-2. **Build Docker Images**: Creates container images for frontend and backend
-3. **Deploy Containers**: Starts all services using docker-compose
-4. **Cleanup**: Removes unused Docker resources
+The Jenkins Declarative pipeline (`Jenkinsfile`) orchestrates the following steps:
+1. **Checkout** – Cleans the workspace and pulls the latest commit from GitHub.
+2. **Inject Secrets** – Downloads the server/client `.env` files from Jenkins credentials and writes them into the workspace.
+3. **Build Images** – Runs `docker-compose build` to produce fresh backend and frontend images (tagged with the Jenkins build number).
+4. **Deploy** – Recreates the stack via `docker-compose down ... up -d` and only brings up the backend and frontend services.
+5. **Health Check** – Waits for the API to boot and calls `GET /api/health` to ensure the deployment succeeded.
 
-### Jenkinsfile Stages
+### Jenkinsfile Highlights
 
 ```groovy
-1. Clone Repository
-   - Clones from: https://github.com/aniketjha348/vele-ci-cd.git
-
-2. Build Docker Image
-   - Runs: docker-compose build
-   - Builds both frontend and backend containers
-
-3. Deploy Docker Container
-   - Runs: docker-compose up -d
-   - Starts all services in detached mode
-
-4. Post Actions (Always)
-   - Cleans up unused Docker resources
-   - Runs: docker system prune -f
+pipeline {
+  environment {
+    TAG = "${env.BUILD_NUMBER ?: 'local'}"
+    BACKEND_IMAGE = 'mern-backend'
+    FRONTEND_IMAGE = 'mern-frontend'
+  }
+  stages {
+    stage('Inject Secrets') {
+      withCredentials([file(credentialsId: 'server_env_file', ...), file(credentialsId: 'client_env_file', ...)]) {
+        sh 'cp "$SERVER_ENV_PATH" server/.env && cp "$CLIENT_ENV_PATH" client/.env'
+      }
+    }
+    stage('Build Images') {
+      sh 'docker-compose -f docker-compose.yml build backend frontend'
+    }
+    stage('Deploy') {
+      sh '''
+        docker-compose -f docker-compose.yml down --volumes --remove-orphans || true
+        docker-compose -f docker-compose.yml up -d --remove-orphans backend frontend
+      '''
+    }
+    stage('Health Check') {
+      sh 'curl --fail --retry 5 --retry-delay 5 http://127.0.0.1:${BACKEND_PORT}/api/health'
+    }
+  }
+}
 ```
 
 ### Setting Up Jenkins
@@ -169,7 +183,10 @@ The Jenkins pipeline automates:
 
 3. **Configure Jenkins**
    - Go to `Manage Jenkins` → `Configure System`
-   - Ensure Docker is accessible from Jenkins
+   - Ensure Docker (and Docker Compose) are available on the agent
+   - Add **Secret file** credentials:
+     - `server_env_file` → upload the backend `.env` (must include `CLIENT_URLS`, `MONGODB_URI`, `JWT_SECRET`, etc.)
+     - `client_env_file` → upload the frontend `.env` with production URLs
    - Configure Git credentials if needed
 
 4. **Create Pipeline Job**
@@ -182,6 +199,8 @@ The Jenkins pipeline automates:
 5. **Run Pipeline**
    - Click "Build Now"
    - Monitor build progress in console output
+
+> **Note:** `docker-compose.yml` exposes an optional `mongodb` service behind the `local-db` profile. Jenkins deploys only the backend and frontend containers; to run MongoDB locally use `docker-compose --profile local-db up`.
 
 ### Local Jenkins Setup
 
@@ -229,10 +248,10 @@ npm start
 
 ```bash
 # Build images
-docker-compose build
+docker-compose build backend frontend
 
-# Start services
-docker-compose up -d
+# Start services (include --profile local-db if you want the MongoDB container)
+docker-compose up -d backend frontend
 
 # Access application
 # Frontend: http://localhost:3000

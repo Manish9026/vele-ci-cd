@@ -1,43 +1,44 @@
-version: '3.8'
+version: '3.9'
 
 services:
   mongodb:
     image: mongo:6
-    container_name: mongodb
+    container_name: vele-mongodb
+    profiles: ["local-db"]
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "${MONGO_PORT:-27017}:27017"
     volumes:
       - mongo-data:/data/db
 
   backend:
-    image: "${IMAGE_BACKEND:-mern-backend}:${TAG:-latest}"
+    container_name: vele-backend
+    image: "${BACKEND_IMAGE:-mern-backend}:${TAG:-latest}"
     build:
       context: ./server
       dockerfile: Dockerfile
     env_file:
       - ./server/.env
     environment:
-      NODE_ENV: production
-    depends_on:
-      - mongodb
+      NODE_ENV: ${NODE_ENV:-production}
     ports:
-      - "5000:5000"
+      - "${BACKEND_PORT:-5000}:5000"
     restart: unless-stopped
 
   frontend:
-    image: "${IMAGE_FRONTEND:-mern-frontend}:${TAG:-latest}"
+    container_name: vele-frontend
+    image: "${FRONTEND_IMAGE:-mern-frontend}:${TAG:-latest}"
     build:
       context: ./client
       dockerfile: Dockerfile
     env_file:
       - ./client/.env
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
     depends_on:
       - backend
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     restart: unless-stopped
 
 volumes:

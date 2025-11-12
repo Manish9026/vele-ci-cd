@@ -1,14 +1,24 @@
 pipeline {
     agent any
+
+    options {
+        timestamps()
+        ansiColor('xterm')
+        disableConcurrentBuilds()
+    }
+
     environment {
-        IMAGE_BACKEND = 'mern-backend'
-        IMAGE_FRONTEND = 'mern-frontend'
-        TAG = "${env.BUILD_NUMBER ?: 'latest'}"
+        TAG = "${env.BUILD_NUMBER ?: 'local'}"
+        BACKEND_IMAGE = 'mern-backend'
+        FRONTEND_IMAGE = 'mern-frontend'
+        BACKEND_PORT = '5000'
+        FRONTEND_PORT = '3000'
     }
 
     stages {
-        stage('Checkout Application') {
+        stage('Checkout') {
             steps {
+                deleteDir()
                 checkout scm
             }
         }
@@ -28,7 +38,7 @@ pipeline {
             }
         }
 
-        stage('Docker Build') {
+        stage('Build Images') {
             steps {
                 sh '''
                 echo "Building Docker images..."
@@ -40,18 +50,34 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh '''
-                echo "Deploying with docker-compose..."
+                echo "Redeploying stack..."
                 docker-compose -f docker-compose.yml down --volumes --remove-orphans || true
-                docker-compose -f docker-compose.yml up -d --remove-orphans
+                docker-compose -f docker-compose.yml up -d --remove-orphans backend frontend
+                '''
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sh '''
+                echo "Waiting for services to become healthy..."
+                sleep 10
+                curl --fail --retry 5 --retry-connrefused --retry-delay 5 http://127.0.0.1:${BACKEND_PORT:-5000}/api/health
                 '''
             }
         }
     }
 
     post {
+        success {
+            echo "✅ Deployment completed for build #${env.BUILD_NUMBER}"
+        }
+        failure {
+            echo "❌ Deployment failed for build #${env.BUILD_NUMBER}"
+        }
         always {
-            echo 'Cleaning up...'
             sh 'rm -f ./server/.env ./client/.env'
+            sh 'docker-compose -f docker-compose.yml ps'
         }
     }
 }
