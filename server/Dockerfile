@@ -1,24 +1,20 @@
-# Stage 1: Build (useful if using TypeScript or transpiling)
-FROM node:24-alpine AS build
+# Use official Node.js image
+FROM node:24-alpine
+
+# Set working directory
 WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
 
 # Install dependencies
-COPY package*.json ./
 RUN npm install
 
-# Copy source code
+# Copy all backend source code
 COPY . .
 
-# Stage 2: Production
-FROM node:24-alpine
-WORKDIR /app
-
-# Copy only what is needed from build stage
-COPY --from=build /app .
-
-# Expose server port
+# Expose backend port
 EXPOSE 5000
 
-# Start the server
+# Start backend
 CMD ["npm", "start"]
-#done

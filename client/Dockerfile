@@ -1,25 +1,26 @@
-# Stage 1: Build React/Next app
-FROM node:24-alpine AS build
+# Use official Node.js image
+FROM node:24-alpine
+
+# Set working directory
 WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
 
 # Install dependencies
-COPY package*.json ./
 RUN npm install
 
-# Copy source code and build
+# Copy frontend source code
 COPY . .
+
+# Build React app
 RUN npm run build
 
-# Stage 2: Serve static files
-FROM node:24-alpine
+# Install serve to serve the build folder
 RUN npm install -g serve
-WORKDIR /app
-
-# Copy build output from previous stage
-COPY --from=build /app/build ./build
 
 # Expose frontend port
 EXPOSE 3000
 
-# Serve the app
+# Start frontend using serve
 CMD ["serve", "-s", "build", "-l", "3000"]

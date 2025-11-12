@@ -2,74 +2,68 @@ pipeline {
     agent any
 
     environment {
-        // Jenkins credentials (file type)
-        SERVER_ENV = credentials('server_env_file')
-        CLIENT_ENV = credentials('client_env_file')
+        // You can define other static environment variables here if needed
     }
 
     stages {
-
-        stage('Clone Repository') {
+        stage('Checkout Repository') {
             steps {
-                echo '🔄 Cloning repository...'
-                git branch: 'main', url: 'https://github.com/aniketjha348/vele-ci-cd.git'
+                echo "🔄 Cloning repository..."
+                checkout scm
             }
         }
 
         stage('Inject .env Files Securely') {
             steps {
-                echo '🔐 Injecting environment files securely...'
-                sh '''
-                    mkdir -p ./server ./client
-                    cp "$SERVER_ENV" ./server/.env
-                    cp "$CLIENT_ENV" ./client/.env
-                    echo "✅ .env files copied successfully."
-                '''
+                echo "🔐 Injecting environment files securely..."
+                withCredentials([
+                    file(credentialsId: 'server_env_file', variable: 'SERVER_ENV'),
+                    file(credentialsId: 'client_env_file', variable: 'CLIENT_ENV')
+                ]) {
+                    sh '''
+                        mkdir -p ./server ./client
+                        cp $SERVER_ENV ./server/.env
+                        cp $CLIENT_ENV ./client/.env
+                        echo "✅ .env files copied successfully"
+                    '''
+                }
             }
         }
 
         stage('Clean Previous Deployment') {
             steps {
-                echo '🧹 Cleaning old Docker containers and images...'
+                echo "🧹 Cleaning old Docker containers and images..."
                 sh '''
-                    docker compose -f docker-compose.yml down || true
-                    docker system prune -af || true
+                    docker compose -f docker-compose.yml down
+                    docker system prune -af
                 '''
             }
         }
 
         stage('Build Docker Images') {
             steps {
-                echo '🐳 Building new Docker images with environment variables...'
+                echo "🐳 Building new Docker images..."
                 sh '''
-                    echo "🧭 Loading environment variables from .env files..."
-                    set -a
-                    [ -f ./server/.env ] && source ./server/.env
-                    [ -f ./client/.env ] && source ./client/.env
-                    set +a
-
-                    docker compose --env-file ./server/.env --env-file ./client/.env -f docker-compose.yml build --no-cache
+                    docker build -t vele-backend ./server
+                    docker build -t vele-frontend ./client
                 '''
             }
         }
 
         stage('Deploy Docker Containers') {
             steps {
-                echo '🚀 Deploying Docker containers...'
+                echo "🚀 Deploying Docker containers..."
                 sh '''
-                    docker compose --env-file ./server/.env --env-file ./client/.env -f docker-compose.yml up -d
+                    docker compose -f docker-compose.yml up -d
                 '''
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                echo '🧩 Verifying running containers...'
+                echo "🔎 Verifying deployment..."
                 sh '''
-                    echo "Backend container:"
-                    docker ps | grep vele-server || echo "⚠️ Backend not running!"
-                    echo "Frontend container:"
-                    docker ps | grep vele-client || echo "⚠️ Frontend not running!"
+                    docker ps
                 '''
             }
         }
@@ -77,17 +71,19 @@ pipeline {
 
     post {
         always {
-            echo '🧽 Cleaning sensitive files and freeing space...'
+            echo "🧽 Cleaning sensitive files and freeing space..."
             sh '''
-                rm -f ./server/.env ./client/.env || true
-                docker system prune -f || true
+                rm -f ./server/.env ./client/.env
+                docker system prune -f
             '''
         }
+
         success {
-            echo '✅ Deployment completed successfully!'
+            echo "✅ Deployment completed successfully!"
         }
+
         failure {
-            echo '❌ Deployment failed. Check Jenkins logs for details.'
+            echo "❌ Deployment failed. Check logs for details."
         }
     }
 }
