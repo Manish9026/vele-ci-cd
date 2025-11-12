@@ -4,7 +4,7 @@ pipeline {
         stage('clone Repository') {
             steps {
                 echo 'Cloning repository...'
-                git url: 'https://github.com/aniketjha348/vele-ci-cd.git'
+                git branch: 'main', url: 'https://github.com/aniketjha348/vele-ci-cd.git'
             }
         }
         stage('Build docker image') {
