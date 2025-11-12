@@ -70,11 +70,11 @@ app.set('trust proxy', true);
 
 
 app.use(cors({
-  origin: "http://20.244.41.209:3000/",
+  origin: "http://20.244.41.209:3000",
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Type'],
+  // allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  // exposedHeaders: ['Content-Type'],
 }));
 
 
