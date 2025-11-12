@@ -21,9 +21,10 @@ pipeline {
 }
 
 
+
 post {
     always {
-        echo 'Cleaning up unused docker resources'
+        echo 'Cleaning.... up unused docker resources'
         sh 'docker system prune -f'
     }
 }
