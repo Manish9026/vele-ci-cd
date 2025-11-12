@@ -1,11 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        SERVER_ENV_CONTENT = ''
-        CLIENT_ENV_CONTENT = ''
-    }
-
     stages {
         stage('Checkout') {
             steps {
@@ -17,14 +12,15 @@ pipeline {
         stage('Inject Env Files') {
             steps {
                 withCredentials([
-                    string(credentialsId: 'server_env_file', variable: 'SERVER_ENV'),
-                    string(credentialsId: 'client_env_file', variable: 'CLIENT_ENV')
+                    file(credentialsId: 'server_env_file', variable: 'SERVER_ENV_FILE_PATH'),
+                    file(credentialsId: 'client_env_file', variable: 'CLIENT_ENV_FILE_PATH')
                 ]) {
                     script {
-                        // Pass credentials into environment variables for Docker build
-                        env.SERVER_ENV_CONTENT = SERVER_ENV
-                        env.CLIENT_ENV_CONTENT = CLIENT_ENV
-                        echo "🔐 Environment files loaded securely."
+                        echo "🔐 Copying secret env files..."
+                        sh '''
+                        cp "$SERVER_ENV_FILE_PATH" ./server/.env
+                        cp "$CLIENT_ENV_FILE_PATH" ./client/.env
+                        '''
                     }
                 }
             }
